@@ -1,4 +1,5 @@
 import argparse
+from torch import cuda
 parser=argparse.ArgumentParser()
 # Data Setting
 parser.add_argument('-dv', '--data_version', help='', required=False, type=str, default='2.1')
@@ -43,7 +44,11 @@ parser.add_argument('-dr','--drop', help='Drop Out', required=False, type=float,
 TRAIN_PARAMETERS=['-path','save/nadst', '-d','256', '-h_attn','16', '-bsz','32', '-wu','20000', '-dr','0.2', '-dv','2.1']
 args=parser.parse_args(args=TRAIN_PARAMETERS)
 args = vars(args)
-# for test
+args['train_path']='data{}/nadst_train_dials.json'.format(args['data_version'])
+args['dev_path']='data{}/nadst_dev_dials.json'.format(args['data_version'])
+args['test_path']='data{}/nadst_test_dials.json'.format(args['data_version'])
+args['ontology_path']="data{}/multi-woz/MULTIWOZ2 2/ontology.json".format(args['data_version'])
+## for test
 # i=0; print("Data setting:")
 # for k,v in args.items():
 #     if k=='evalp':
@@ -63,4 +68,4 @@ EOS_token = 2
 UNK_token = 0 
 GATES = {"gen":0, "dontcare":1, "none":2}
 REVERSE_GATES = {v: k for k, v in GATES.items()}
-USE_CUDA = False
+USE_CUDA = True if cuda.is_available() else False

@@ -26,7 +26,7 @@ def fix_general_label_error(labels, type, slots):
     #slots: ALL_SLOTS
     #return: label_slots: a dictionary containing pairs of slot:value
     label_dict = {l[0]: l[1] for l in labels} if type else {l["slots"][0][0]:l["slots"][0][1] for l in labels}
-    #type->True: label_dict(slot:act,...); type->False: label_dict(slot:value)
+    #type->True: label_dict(slot:<list>slot_value,act:<str>act_name); type->False: label_dict(slot:value)
     GENERAL_TYPO = {# type
         "guesthouse":"guest house", "guesthouses":"guest house", "guest":"guest house", "mutiple sports":"multiple sports", 
         "sports":"multiple sports", "mutliple sports":"multiple sports","swimmingpool":"swimming pool", "concerthall":"concert hall", 
@@ -53,9 +53,8 @@ def fix_general_label_error(labels, type, slots):
         }
     for slot in slots:
         if slot in label_dict.keys():
-            # 简写恢复
-            if label_dict[slot] in GENERAL_TYPO.keys():#将slot名替换
-                label_dict[slot] = GENERAL_TYPO[label_dict[slot]]
+            # 槽值简写恢复
+            label_dict[slot] = GENERAL_TYPO.get(label_dict[slot],label_dict[slot])
             # 槽值匹配不上，槽值根本不在ontology范围内，语义上也说不通
             if  slot == "hotel-type" and label_dict[slot] in ["nigh", "moderate -ly priced", "bed and breakfast", "centre", "venetian", "intern", "a cheap -er hotel"] or \
                 slot == "hotel-internet" and label_dict[slot] == "4" or \
@@ -195,8 +194,7 @@ def read_langs(file_name, ALL_SLOTS, dataset, lang, mem_lang, is_training, args)
             # 统计每个领域包含的对话数
             for domain in dial_dict["domains"]:
                 if domain not in domain_counter.keys():
-                    domain_counter[domain] = 0
-                domain_counter[domain] += 1
+                    domain_counter[domain] = domain.get(domain,0)+1
             # Reading data
             dialog_history = ''#对话历史
             delex_dialog_history = ''#包含标记的对话历史
@@ -235,7 +233,6 @@ def read_langs(file_name, ALL_SLOTS, dataset, lang, mem_lang, is_training, args)
                     atrg_generate_y, sorted_in_domainslots2_index = get_atrg_generate_y(sorted_domainslots, sorted_lenval, turn_belief_dict)
                 else:
                     atrg_generate_y = None 
-                
                 if args['delex_his']:
                     in_delex_dialog_history= delex_dialog_history+dlx_sys_sent+user_sent
                     if (dataset=='train' and is_training) or (args['pointer_decoder']):
@@ -304,6 +301,11 @@ def preprocess_multiWOZ(training,args):
     file_test = 'data{}/nadst_test_dials.json'.format(args['data_version'])
     ontology = json.load(open("data2.0/multi-woz/MULTIWOZ2 2/ontology.json", 'r'))
     ALL_SLOTS, ALL_DOMAINS = get_slot_information(ontology)
+    # def get_slot_information(ontology):
+    # #domain-slot_name
+    #     slots = [k.replace(" ","").lower() for k in ontology.keys()]
+    #     all_domains = set([i.split('-')[0] for i in slots])
+    #     return slots, all_domains
     #lang:词典函数
     lang = Lang()#全局词典
     lang.index_words(ALL_SLOTS, 'slot'); lang.index_word('dontcare')
@@ -354,7 +356,6 @@ def preprocess_and_storing():
         'SLOTS_LIST': SLOTS_LIST,
         'args': args
     }
-
     if not os.path.exists(args['path']):
         os.makedirs(args['path'])
     joblib.dump(save_data, filename=args['path'] + '/processedMultiWOZ.joblib')
