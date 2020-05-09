@@ -190,7 +190,7 @@ def extract_dialogues(data, ALL_SLOTS, global_vocab, mem_vocab, is_train,args):
             #标签值长度
             normalized_val_len, gates = get_normalized_value_len(ordered_domainSlots, turn_belief_dict, args['slot_gating'])#获取对应槽值长度
             # 生成的领域槽和值序列 length of value * domains- nonautoregressive model
-            domains_seq, slots_seq, y_val_seq, domainslots2_index_seq = \
+            domains_seq, slots_seq, y_val_seq, _ = \
                 get_nonatrg_normalized_y(ordered_domainSlots, normalized_val_len, turn_belief_dict)
             domainslots_index_auto=None
             y_val_auto = None

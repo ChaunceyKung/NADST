@@ -1,4 +1,4 @@
-#-*- encoding:utf-8 -*-
+#-*- encoding: utf-8 -*-
 #public packages
 import torch
 import torch.utils.data as data
@@ -121,7 +121,6 @@ class Dataset(data.Dataset):
 def collate_fn(data):
     def merge(sequences, pad_token, max_len=-1):
         '''
-        瑙勬ā缁熶竴宸ヤ綔
         merge from batch * sent_len to batch * max_len 
         '''
         lengths = [len(seq) for seq in sequences]
