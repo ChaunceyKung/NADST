@@ -85,3 +85,6 @@ An example of pretrained NADST model using the sampled script in `scripts/run.sh
 Example predicted dialogue states for dialogue ID MUL0536 in MultiWOZ2.1
 </p>
 
+# Reconstruction
+
+For the sake of my researches, I want to refresh all of the source codes in this project for the deep comprehension of related paper, and all the refreshed codes are placed in the directory /reconstruction. 
