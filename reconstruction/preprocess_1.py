@@ -11,7 +11,8 @@ import torch
 #user source code
 from utils.parameter_setting import args,PAD_token,SOS_token,EOS_token,UNK_token,GATES,REVERSE_GATES,USE_CUDA
 from utils.Vocab import Vocabs
-# from utils.dataset import *
+from utils.dataset import Dataset, collate_fn
+
 def get_slots_information(ontology:dict)->Tuple[Tuple[str],Set[str]]:
     #description:获取所有领域和领域-槽
     ALL_SLOTS = tuple(k.replace(" ","").lower() for k in ontology.keys())
@@ -172,8 +173,8 @@ def extract_dialogues(data, ALL_SLOTS, global_vocab, mem_vocab, is_train,args):
         #领域对话数个更新
         for domain in dial["domains"]:
             domain_counter[domain] = domain_counter.get(domain,0)+1
-        dialogue_history=''#对话历史
-        delex_dialogue_history=''#将领域槽值替换成领域槽标记的对话历史
+        dialog_history=''#对话历史
+        delex_dialog_history=''#将领域槽值替换成领域槽标记的对话历史
         #遍历一次对话的所有轮次
         for tid, turn in enumerate(dial['dialogue']):
             #**********对话状态标签***********
@@ -214,10 +215,10 @@ def extract_dialogues(data, ALL_SLOTS, global_vocab, mem_vocab, is_train,args):
                 sys_sent = ' SOS '  + turn["system_transcript"] + ' EOS '
                 dlx_sys_sent = 'SOS ' + turn["delex_system_transcript"] + ' EOS '
             turn_uttr = sys_sent + user_sent 
-            dialogue_history += sys_sent +user_sent
+            dialog_history += sys_sent +user_sent
             if args['delex_his']:
-                in_delex_dialogue_history= delex_dialogue_history+dlx_sys_sent+user_sent
-            delex_dialogue_history += dlx_sys_sent+dlx_user_sent
+                in_delex_dialog_history= delex_dialog_history+dlx_sys_sent+user_sent
+            delex_dialog_history += dlx_sys_sent+dlx_user_sent
             #**********词典更新**********
             if is_train==True or args['pointer_decoder']:
                 #扩充词典条件:训练集或者使用了指针解码器
@@ -232,8 +233,8 @@ def extract_dialogues(data, ALL_SLOTS, global_vocab, mem_vocab, is_train,args):
             a_turn={#一个轮次对话
                 "ID": dial["dialogue_idx"], 
                 "turn_id": tid, 
-                "dialog_history": dialogue_history.strip(), 
-                "delex_dialog_history": in_delex_dialogue_history.strip(),
+                "dialog_history": dialog_history.strip(), 
+                "delex_dialog_history": in_delex_dialog_history.strip(),
                 "turn_uttr":turn_uttr.strip(), 
                 "ordered_domainSlots": ordered_domainSlots,
                 'ordered_domains': ordered_domains,
@@ -264,7 +265,7 @@ def get_model_input(data, global_vocab, mem_vocab, domain_vocab, slot_vocab, bat
     #args:模型参数设置
     #split:可取值为split
     #ALL_SLOTS:所有槽
-    model_input = {k:[] for k in pairs[0].keys()}
+    model_input = {k:[] for k in data[0].keys()}
     #原先使用一个dictionary表示一轮对话，现在拆散成列表，也就是包含字典的列表变为包含列表的字典
     for turn in data:
         for k in model_input.keys():
@@ -310,31 +311,34 @@ def preprocess_data(args:dict)->None:
         extract_dialogues(dev, ALL_SLOTS, global_vocab, mem_vocab, False,args)
     test_data, max_len_a_domainSlotValue_test, max_len_domainSlotValue_test=\
         extract_dialogues(test, ALL_SLOTS, global_vocab, mem_vocab, False,args)
-    print("训练数据train包含: %s 次对话" % len(train_data))
-    print("验证数据dev包含: %s 次对话" % len(dev_data))
-    print("测试数据test包含: %s 次对话" % len(test_data))  
-    print("全局词典包含词数: %s " % global_vocab.n_words)
-    print("对话状态的词典包含的词数: %s" % mem_vocab.n_words )
-    print("领域词典包含的词数: {}".format(domain_vocab.n_words))
-    print("槽词典包含的词数: {}".format(slot_vocab.n_words))
+    max_len_val=max(max_len_a_domainSlotValue_train, max_len_a_domainSlotValue_dev, max_len_a_domainSlotValue_test)
+    print("训练数据train包含: %s 轮次对话" % len(train_data))
+    print("验证数据dev包含: %s 轮次对话" % len(dev_data))
+    print("测试数据test包含: %s 轮次对话" % len(test_data))  
+    print("全局词典包含词数global_vocab: %s " % global_vocab.n_words)
+    print("对话状态的词典包含的词数mem_vocab: %s" % mem_vocab.n_words )
+    print("领域词典包含的词数domain_vocab: {}".format(domain_vocab.n_words))
+    print("槽词典包含的词数slot_vocab: {}".format(slot_vocab.n_words))
     print("槽值最大长度: train {} dev {} test {} all {} ".\
-        format(max_len_a_domainSlotValue_train, max_len_a_domainSlotValue_dev, max_len_a_domainSlotValue_test,max(max_len_a_domainSlotValue_train, max_len_a_domainSlotValue_dev, max_len_a_domainSlotValue_test)))
-    print("是否使用GPU-USE_CUDA={}".format(USE_CUDA))
-    # train_final = get_model_input(train_data, global_vocab, mem_vocab, domain_vocab, slot_vocab, batch_size, True, args, 'train', ALL_SLOTS)
-    # dev_final   = get_model_input(dev_data, vocab, mem_vocab, domain_vocab, slot_vocab, eval_batch, False, args, 'dev', ALL_SLOTS)
-    # test_final  = get_model_input(test_data, vocab, mem_vocab, domain_vocab, slot_vocab, eval_batch, False, args, 'test', ALL_SLOTS)
-    # #存储文件到指定路径
-    
-    # SLOTS_LIST = {}
-    # SLOTS_LIST['all'] = ALL_SLOTS
-    # SLOTS_LIST['train'] = slot_train
-    # SLOTS_LIST['dev'] = slot_dev
-    # SLOTS_LIST['test'] = slot_test
-    # return train, dev, test, lang, mem_lang, domain_lang, slot_lang, SLOTS_LIST, max_len_val
-    # train, dev, test, \
-    # src_lang, tgt_lang, \
-    # domain_lang, slot_lang,\
-    # SLOTS_LIST, max_len_val = preprocess_multiWOZ(True,args)
+        format(max_len_a_domainSlotValue_train, max_len_a_domainSlotValue_dev, max_len_a_domainSlotValue_test,max_len_val))
+    print("是否使用GPU-USE_CUDA={} ".format(USE_CUDA))
+    batch_size = args['batch']#32
+    eval_batch = args["eval_batch"] if args["eval_batch"] else batch_size#16
+    train_final = get_model_input(train_data, global_vocab, mem_vocab, domain_vocab, slot_vocab, batch_size, \
+        True, args, 'train', ALL_SLOTS)
+    dev_final   = get_model_input(dev_data, global_vocab, mem_vocab, domain_vocab, slot_vocab, eval_batch, \
+        False, args, 'dev', ALL_SLOTS)
+    test_final  = get_model_input(test_data, global_vocab, mem_vocab, domain_vocab, slot_vocab, eval_batch, \
+        False, args, 'test', ALL_SLOTS)
+    SLOTS_LIST = {}
+    SLOTS_LIST['all'] = ALL_SLOTS
+    SLOTS_LIST['train'] = ALL_SLOTS
+    SLOTS_LIST['dev'] = ALL_SLOTS
+    SLOTS_LIST['test'] = ALL_SLOTS
+    return train, dev, test, global_vocab, mem_vocab, domain_vocab, slot_vocab, SLOTS_LIST, max_len_val
+
+if __name__=='__main__':
+    preprocess_data(args)
     # save_data = {
     #     'train': train, 'dev': dev, 'test': test,
     #     'src_lang': src_lang, 'tgt_lang': tgt_lang,
@@ -347,6 +351,3 @@ def preprocess_data(args:dict)->None:
     # joblib.dump(save_data, filename=args['path'] + '/processedMultiWOZ.joblib')
     # print('Storing data into specific path was accomplished!')
     #joblib.dump(save_data, filename=args['path'] + '/processedMultiWOZ.joblib')
-
-if __name__=='__main__':
-    preprocess_data(args)

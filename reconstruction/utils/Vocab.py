@@ -1,4 +1,4 @@
-from parameter_setting import PAD_token,SOS_token,EOS_token,UNK_token
+from utils.parameter_setting import PAD_token,SOS_token,EOS_token,UNK_token
 class Vocabs:
     #考虑Vocab有可能和其他库冲突
     def __init__(self):
